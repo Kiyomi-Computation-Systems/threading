@@ -1,0 +1,62 @@
+#!/bin/sh
+# Finds Chez Scheme, or refuses a binary that is not it.
+#
+#   scripts/require-chez --find NAME...
+#       Prints the first NAME on PATH that answers as Chez Scheme, else the
+#       first NAME on PATH, else the first NAME. The Makefile takes CHEZ from
+#       it when none is given.
+#   scripts/require-chez CHEZ
+#       Prints the version CHEZ answers and exits 0 when it is Chez Scheme.
+#       Otherwise names what it found on stderr and exits 1.
+#
+# Each binary is asked (scheme-version) on stdin, under a 10-second limit
+# where GNU timeout or gtimeout is on PATH: another Scheme installed as
+# `scheme` answers something else, or errors, or waits.
+set -u
+
+die() { printf 'require-chez: %s\n' "$*" >&2; exit 1; }
+
+# ask BIN: the first line BIN answers to (scheme-version), or nothing.
+ask() {
+  limit=
+  if command -v timeout >/dev/null 2>&1; then limit="timeout 10"
+  elif command -v gtimeout >/dev/null 2>&1; then limit="gtimeout 10"
+  fi
+  printf '(display (scheme-version))\n' | $limit "$1" -q 2>/dev/null | head -n 1
+}
+
+is_chez() {
+  case $1 in
+    "Chez Scheme Version "*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+if [ "${1:-}" = --find ]; then
+  shift
+  [ $# -gt 0 ] || die "--find needs at least one name"
+  fallback=$1
+  on_path=
+  for name in "$@"; do
+    command -v "$name" >/dev/null 2>&1 || continue
+    [ -n "$on_path" ] || on_path=$name
+    if is_chez "$(ask "$name")"; then
+      printf '%s\n' "$name"
+      exit 0
+    fi
+  done
+  printf '%s\n' "${on_path:-$fallback}"
+  exit 0
+fi
+
+[ $# -eq 1 ] || die "usage: require-chez CHEZ | require-chez --find NAME..."
+chez=$1
+[ -n "$chez" ] || die "CHEZ is empty: set CHEZ to Chez Scheme's binary"
+command -v "$chez" >/dev/null 2>&1 ||
+  die "CHEZ=$chez is not on PATH: install Chez Scheme, or set CHEZ to its binary (Homebrew installs it as chez)"
+got=$(ask "$chez")
+if is_chez "$got"; then
+  printf 'check-chez: %s (%s)\n' "$got" "$chez"
+  exit 0
+fi
+die "CHEZ=$chez is not Chez Scheme: asked (scheme-version), it answered '${got}'. Set CHEZ to Chez Scheme's binary (Homebrew installs it as chez)."

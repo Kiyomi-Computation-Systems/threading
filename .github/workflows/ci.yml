@@ -1,0 +1,152 @@
+name: CI
+
+# Linux only, deliberately (AGENTS.md: do NOT set up macOS runners). One job,
+# run on two images, amd64 and arm64: it clones chez-srfi with `make
+# submodules`, holds it at its pin with `make check-pins`, builds Chez 10.4.1
+# (once, then cached), and runs `make test`, which runs check-help,
+# check-suites, check-imports once src/ exists, and every suite.
+#
+# Every action is pinned to a full commit SHA, with its tag in a comment: a tag
+# can be moved to other code, a commit cannot.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      # A run by hand with a salt misses the Chez cache, so the build-and-save
+      # path runs: proven now, not at the next version or image bump.
+      chez-cache-salt:
+        description: "Appended to the Chez cache key, to run its miss path"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# The Chez the job asserts it ends up with, rather than trusting the steps
+# that resolve it. scripts/ci/build-chez.sh builds this release.
+env:
+  CHEZ_VERSION: "10.4.1"
+
+jobs:
+  linux:
+    name: linux ${{ matrix.arch }}
+    # Explicit images, not ubuntu-latest: that label moves from one Ubuntu
+    # release to the next, and an image change should be a reviewed commit.
+    # Changing an image re-keys the Chez cache (step `os`), and so does the
+    # arch. One arch failing does not cancel the other.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+            machine: x86_64
+            chez-machine: ta6le
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+            machine: aarch64
+            chez-machine: tarm64le
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      # The machine is the arch its label names, checked before anything is
+      # built: a label that lands on another arch fails here, by name.
+      - name: Assert the machine is ${{ matrix.machine }}
+        run: |
+          got="$(uname -m)"
+          [ "$got" = "${{ matrix.machine }}" ] || { echo "::error::runner ${{ matrix.runner }} is $got, not ${{ matrix.machine }}"; exit 1; }
+          echo "machine $got"
+
+      # This repository alone, with the job's own token, which is not kept in
+      # .git/config once the checkout is done.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # make and git, which every later step runs; a C compiler for Chez,
+      # which scripts/ci/build-chez.sh configures with no X11 or curses;
+      # curl, which fetches its tarball; coreutils, GNU timeout, which `make
+      # test` runs each suite under. Most are already on the image: naming
+      # them, before any step uses them, keeps the job from depending on that.
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends build-essential git curl coreutils
+
+      # chez-srfi is public, so no token is needed, and a pull request from a
+      # fork builds as one from this repository does. A drifted pin fails
+      # here, in seconds, not after a cold Chez build.
+      - name: Init submodules
+        run: make submodules
+
+      - name: Check the pin
+        run: make check-pins
+
+      # The OS release for the Chez cache key, read off the machine rather than
+      # restated from runs-on, so a new image misses the cache instead of
+      # restoring a Chez built against another release's libraries.
+      - name: Identify the OS release
+        id: os
+        run: |
+          . /etc/os-release
+          echo "release=${ID:?}-${VERSION_ID:?}" >> "$GITHUB_OUTPUT"
+
+      # apt's chezscheme is 9.5.8, with no arm64 build, so build 10.4.1 from
+      # its sha256-pinned release tarball and cache it, keyed on the build
+      # script (which holds the version, the sum and the configure line), the
+      # OS release and the arch: a change to any must miss, not merge.
+      - name: Restore cached Chez Scheme
+        id: chez-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.local/chez
+          key: chez-${{ runner.os }}-${{ steps.os.outputs.release }}-${{ runner.arch }}-${{ hashFiles('scripts/ci/build-chez.sh') }}${{ inputs.chez-cache-salt }}
+
+      - name: Build Chez Scheme from source
+        if: steps.chez-cache.outputs.cache-hit != 'true'
+        run: scripts/ci/build-chez.sh "$HOME/.local/chez"
+
+      # Saved here, not by the cache action's post-step, so a failed later step
+      # never publishes a half-installed prefix under the key.
+      - name: Save built Chez Scheme
+        if: steps.chez-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.local/chez
+          key: ${{ steps.chez-cache.outputs.cache-primary-key }}
+
+      # CHEZ names the binary just built or restored, by its path: no search
+      # of PATH, where another `scheme` could come first. Every later step and
+      # `make` read it.
+      - name: Name the Chez binary
+        run: echo "CHEZ=$HOME/.local/chez/bin/scheme" >> "$GITHUB_ENV"
+
+      - name: Assert Chez is ${{ env.CHEZ_VERSION }}
+        run: |
+          raw="$($CHEZ --version 2>&1)"
+          [ "$raw" = "$CHEZ_VERSION" ] || { echo "::error::Chez answers '$raw', not $CHEZ_VERSION"; exit 1; }
+          echo "Chez $raw"
+
+      # Chez's own machine type, the one its configure chose for this arch: a
+      # Chez restored or built for another arch fails here.
+      - name: Assert Chez is a ${{ matrix.chez-machine }} build
+        run: |
+          got="$(echo '(display (machine-type))' | $CHEZ -q --script /dev/stdin)"
+          [ "$got" = "${{ matrix.chez-machine }}" ] || { echo "::error::Chez's machine type is $got, not ${{ matrix.chez-machine }}"; exit 1; }
+          echo "Chez machine type $got"
+
+      - name: Report versions
+        run: |
+          $CHEZ --version 2>&1 || true
+          make --version | head -1
+          timeout --version | head -1
+
+      - name: Test
+        run: make test
