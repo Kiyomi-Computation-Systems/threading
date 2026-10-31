@@ -37,6 +37,29 @@ list, and every other datum are syntax errors.
 : Like the matching threading form, but evaluate each result once and stop at
   the first `#f`. With no clauses, each expands to `value`.
 
+`(when~> value test clause ...)`
+
+: Evaluate `value`, then `test`. When `test` is true, thread the value through
+  the clauses as `~>` does; otherwise answer the original value.
+
+`(unless~> value test clause ...)`
+
+: Evaluate `value`, then `test`. When `test` is false, thread the value through
+  the clauses as `~>` does; otherwise answer the original value.
+
+`(cond~> value (test clause ...) ... (else clause ...))`
+
+: Evaluate `value` once, then tests from left to right. Thread its value through
+  the first matching clause body. An `else` clause is optional; without one,
+  no matching test answers the original value. `else` must be last and uses the
+  ordinary R6RS `else` binding, so a locally bound variable named `else` is a
+  normal test.
+
+`(tee~> value clause ...)`
+
+: Evaluate `value` once, thread it through the clauses for their effects, then
+  answer the original value. With no clauses, it answers that value unchanged.
+
 ## Procedure forms
 
 `(lambda~> clause ...)`, `(lambda~>> clause ...)`,

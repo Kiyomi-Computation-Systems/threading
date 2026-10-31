@@ -11,5 +11,6 @@ release before 1.0.
 
 - `(threading)`: `~>`, `~>>`, `and~>`, `and~>>`, the `lambda` threading
   forms and their `λ` aliases, with R6RS `_` insertion holes.
+- `(threading)`: `when~>`, `unless~>`, `cond~>` and `tee~>`.
 - Reference documentation and syntax errors that name the original form and
   invalid clause.

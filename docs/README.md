@@ -23,6 +23,16 @@ that `#f` without running later clauses.
 (and~> #f string->number)          ; => #f
 ```
 
+`when~>` and `unless~>` choose whether to run a first-threading chain.
+`cond~>` chooses its first matching chain, and `tee~>` runs a chain for its
+effects while returning the original value.
+
+```scheme
+(when~> 1 #t (+ 2))              ; => 3
+(unless~> 1 #t (+ 2))            ; => 1
+(cond~> 1 (#f (+ 2)) (else (* 3))); => 3
+```
+
 The `lambda` forms turn a chain into a procedure.  The `*` variants collect
 all arguments into one list.  Every `lambda` name also has a `λ` alias.
 
