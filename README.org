@@ -19,17 +19,12 @@ the order they happen, not inside out.
 - *Chains as procedures.* =lambda~>= makes a procedure of one argument from a
   chain, and =lambda~>*= one of any number, taken as a list. Each has an
   ~and~ form, and a ~λ~ name: =λ~>=, =λ-and~>=.
-- *Steps that may not run.* =when~>= and =unless~>= run a chain only when a
-  test holds, or fails, and =cond~>= picks one chain of several; otherwise the
-  value passes through unchanged.
-- *Side trips.* =tee~>= runs a chain for its effects, a log line say, and
-  answers the value it was given.
 - *Plain R6RS.* One library, ~(threading)~, importing nothing but ~(rnrs)~, so
   it runs on any R6RS Scheme. The suites run on Chez Scheme.
 
-Nothing is released yet: the forms are being ported, and ~src/~ is still
-empty. The API may change in any release before 1.0; [[file:CHANGELOG.md][CHANGELOG.md]] will say
-what each release has.
+Nothing is released yet. The API may change in any release before 1.0;
+[[file:CHANGELOG.md][CHANGELOG.md]] will say what each release has. The complete
+grammar is in [[file:docs/reference.md][the reference]].
 
 ** Quick start
 
@@ -49,7 +44,6 @@ Upstream's own example, with R6RS's names:
 #+end_src
 
 Each chain is the nested call under it, written in the order it runs.
-Upstream's [[https://docs.racket-lang.org/threading/][guide]] explains every form, and the port follows it.
 
 ** Build and test
 
