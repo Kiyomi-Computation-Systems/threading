@@ -1,0 +1,86 @@
+* threading
+
+[[https://github.com/Kiyomi-Computation-Systems/threading/actions/workflows/ci.yml][https://github.com/Kiyomi-Computation-Systems/threading/actions/workflows/ci.yml/badge.svg]]
+
+[[https://github.com/lexi-lambda][Alexis King]]'s [[https://github.com/lexi-lambda/threading][threading]] macros for R6RS Scheme: write a chain of calls in
+the order they happen, not inside out.
+
+#+begin_quote
+✨ *AI Disclosure:* LLMs are used extensively in the planning and development of this project.
+#+end_quote
+
+** Features
+
+- *Thread first, thread last.* =~>= passes a value through each clause as its
+  first argument, =~>>= as its last, and a ~_~ in a clause marks exactly where
+  it goes.
+- *Stop at ~#f~.* =and~>= and =and~>>= stop at the first clause that answers
+  ~#f~, and answer ~#f~.
+- *Chains as procedures.* =lambda~>= makes a procedure of one argument from a
+  chain, and =lambda~>*= one of any number, taken as a list. Each has an
+  ~and~ form, and a ~λ~ name: =λ~>=, =λ-and~>=.
+- *Steps that may not run.* =when~>= and =unless~>= run a chain only when a
+  test holds, or fails, and =cond~>= picks one chain of several; otherwise the
+  value passes through unchanged.
+- *Side trips.* =tee~>= runs a chain for its effects, a log line say, and
+  answers the value it was given.
+- *Plain R6RS.* One library, ~(threading)~, importing nothing but ~(rnrs)~, so
+  it runs on any R6RS Scheme. The suites run on Chez Scheme.
+
+Nothing is released yet: the forms are being ported, and ~src/~ is still
+empty. The API may change in any release before 1.0; [[file:CHANGELOG.md][CHANGELOG.md]] will say
+what each release has.
+
+** Quick start
+
+Upstream's own example, with R6RS's names:
+
+#+begin_src scheme
+(import (rnrs) (threading))
+
+(~> 'abc symbol->string string->utf8 (bytevector-u8-ref 1) (- 2))
+;; (- (bytevector-u8-ref (string->utf8 (symbol->string 'abc)) 1) 2) => 96
+
+(~>> '(1 2 3 4 5) (filter odd?) (map (lambda (x) (* x x))) (apply +))
+;; (apply + (map (lambda (x) (* x x)) (filter odd? '(1 2 3 4 5)))) => 35
+
+(~> 1 (+ 2) (* 10) number->string (string-append "<" _ ">"))
+;; (string-append "<" (number->string (* (+ 1 2) 10)) ">") => "<30>"
+#+end_src
+
+Each chain is the nested call under it, written in the order it runs.
+Upstream's [[https://docs.racket-lang.org/threading/][guide]] explains every form, and the port follows it.
+
+** Build and test
+
+You need Linux or macOS, on x86-64 or arm64, with:
+
+- Chez Scheme, as ~scheme~ or ~chez~ on ~PATH~, or named by ~CHEZ~. CI
+  builds 10.4.1; 10.4.0 runs the suites too.
+- GNU make, and GNU ~timeout~ (~brew install coreutils~ on macOS).
+
+The library needs nothing else. The suites take SRFI-64 from [[https://github.com/arcfide/chez-srfi][chez-srfi]],
+pinned under ~vendor/~.
+
+#+begin_src sh
+git clone https://github.com/Kiyomi-Computation-Systems/threading.git
+cd threading
+make submodules   # clones chez-srfi, the suites' SRFI-64, at its pin
+make test         # runs every tests/test-*.sps
+#+end_src
+
+~make help~ lists every target.
+
+** Credits
+
+The forms, their grammar and their behaviour are Alexis King's ([[https://github.com/lexi-lambda][lexi-lambda]]),
+from her Racket library [[https://github.com/lexi-lambda/threading][threading]], whose release 2.0 this ports. Her
+[[https://docs.racket-lang.org/threading/][documentation]] is the best introduction to them. Her library, in turn, took
+the idea from [[https://clojure.org/guides/threading_macros][Clojure's threading macros]], which is where the name comes from:
+it has nothing to do with threads.
+
+** License
+
+© [[https://kiyomicomputation.systems/][Kiyomi Computation Systems LLC]]. Licensed under BSD 3-Clause — see
+[[file:LICENSE][LICENSE]]. Alexis King's threading is under the ISC license, and [[file:NOTICE][NOTICE]]
+carries her copyright and license.

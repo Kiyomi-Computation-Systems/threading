@@ -1,0 +1,15 @@
+# Kept LF in every checkout: sh cannot run a script with CRs, and the import
+# audit holds a library's whole first line to #!r6rs.
+*.sh       text eol=lf
+scripts/*  text eol=lf
+*.sls      text eol=lf
+*.sps      text eol=lf
+
+# The audit's fixture of bytes that are no UTF-8 stays byte for byte.
+tests/fixtures/imports/unreadable/bad-utf8.sls  binary
+
+# Design records, the ledger and the coding agents' instructions stay in the
+# repository but out of release archives (git archive, GitHub's source
+# tarballs).
+/.plans     export-ignore
+/AGENTS.md  export-ignore

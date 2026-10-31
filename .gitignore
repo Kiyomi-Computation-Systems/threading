@@ -1,0 +1,16 @@
+# build artifacts: the SRFI-64 link tree, run-check's captures, mutants
+/build/
+
+# Chez compiled objects / whole-program optimization outputs
+*.so
+*.wpo
+
+# plugin scratch, not the ledger (AGENTS.md)
+/.superpowers/
+
+# linked worktrees made under the checkout
+/.claude/worktrees/
+
+# The import audit's litter fixture holds the very files a global ignore
+# (*~, .DS_Store, .#*) leaves out: without them its test proves nothing.
+!/tests/fixtures/imports/litter/**
