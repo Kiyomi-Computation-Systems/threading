@@ -9,11 +9,13 @@ before starting slice work. When a slice merges, update **Now** and add a close-
 - **The scaffold is merged**, squashed from
   [PR #1](https://github.com/Kiyomi-Computation-Systems/threading/pull/1) on 2026-10-31;
   its close-out is below.
+- **Slice 1 is merged**, squashed from
+  [PR #2](https://github.com/Kiyomi-Computation-Systems/threading/pull/2) on 2026-10-31;
+  its close-out is below.
 - **The design** is [2026-10-31-threading-design.md](2026-10-31-threading-design.md).
   The owner answered its six open questions on 2026-10-31, each the recommended option;
   design §7 records the answers.
-- **Next: slice 1**, `~>`, `~>>`, `and~>`, `and~>>`, `_` and the `lambda` forms with
-  their `λ` aliases (design §6).
+- **Next: slice 2**, `when~>`, `unless~>`, `cond~>` and `tee~>` (design §6).
 
 ## Open
 
@@ -28,6 +30,20 @@ before starting slice work. When a slice merges, update **Now** and add a close-
   support.
 
 ## Close-outs
+
+### Slice 1: PR #2, 2026-10-31
+
+- **What merged:** `(threading)` with `~>`, `~>>`, `and~>`, `and~>>`, `_`, the eight
+  `lambda` forms and their `λ` aliases; the base suite; concise guide and reference;
+  and an Unreleased changelog entry.
+- **Verified:** `make test` passed all four suites locally, including 36 assertions in
+  `tests/test-threading.sps`; `make check-pins check-help` and `git diff --check` passed.
+- **The review:** a read-only review found no actionable issue.
+- **Also learned:** `begin-for-syntax` is not available in this R6RS environment, and
+  Chez's R6RS `datum->syntax` requires an identifier template. The implementation uses
+  one private `syntax-case` dispatcher and `with-syntax` splicing instead.
+- **Still open:** the required capped mutant run did not start on macOS because
+  `ulimit -v` was refused; its `&&` guard correctly prevented an uncapped run.
 
 ### The scaffold: PR #1, 2026-10-31
 
