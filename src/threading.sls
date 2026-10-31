@@ -6,7 +6,7 @@
 ;;; _ is an ordinary identifier.  The validator runs before any expansion is
 ;;; built so an invalid clause is reported against the user's whole form.
 (library (threading)
-  (export ~> ~>> and~> and~>>
+  (export ~> ~>> and~> and~>> when~> unless~> cond~> tee~>
           lambda~> lambda~>> lambda~>* lambda~>>*
           lambda-and~> lambda-and~>> lambda-and~>* lambda-and~>>*
           (rename (lambda~> λ~>)
@@ -47,6 +47,15 @@
       ;; particular, a use-site binding of _ is not (rnrs base)'s _.
       (define (base-hole? stx)
         (and (identifier? stx) (free-identifier=? stx #'base:_)))
+
+      ;; base-else? : Syntax -> Boolean
+      ;; A cond~> marker is (rnrs base)'s else.  A use-site variable named
+      ;; else has a different binding and remains an ordinary test.  R6RS
+      ;; syntax-case matches a listed literal by its binding, not its spelling.
+      (define (base-else? stx)
+        (syntax-case stx (else)
+          (else #t)
+          (_ #f)))
 
       ;; count-holes : (Listof Syntax) -> Integer
       (define (count-holes elements)
@@ -136,6 +145,99 @@
                     #'(let ((t e))
                         (and t next))))))))
 
+      ;; when-expression : Syntax Syntax (Listof Syntax) -> Syntax
+      ;; Evaluate VALUE, then TEST.  Only a true test evaluates the threaded
+      ;; body, which takes the generated temporary as its value.
+      (define (when-expression value test clauses)
+        (let ((temporary (car (generate-temporaries (list value)))))
+          (let ((body (thread-expression 'first temporary clauses)))
+            (with-syntax ((t temporary)
+                          (e value)
+                          (test test)
+                          (body body))
+              #'(let ((t e))
+                  (if test body t))))))
+
+      ;; unless-expression : Syntax Syntax (Listof Syntax) -> Syntax
+      ;; Evaluate VALUE, then TEST.  Only a false test evaluates the threaded
+      ;; body, which takes the generated temporary as its value.
+      (define (unless-expression value test clauses)
+        (let ((temporary (car (generate-temporaries (list value)))))
+          (let ((body (thread-expression 'first temporary clauses)))
+            (with-syntax ((t temporary)
+                          (e value)
+                          (test test)
+                          (body body))
+              #'(let ((t e))
+                  (if test t body))))))
+
+      ;; tee-expression : Syntax (Listof Syntax) -> Syntax
+      ;; Evaluate VALUE once, run the threaded body for its effects, then
+      ;; answer the original generated temporary.
+      (define (tee-expression value clauses)
+        (let ((temporary (car (generate-temporaries (list value)))))
+          (let ((body (thread-expression 'first temporary clauses)))
+            (with-syntax ((t temporary)
+                          (e value)
+                          (body body))
+              #'(let ((t e))
+                  body
+                  t)))))
+
+      ;; parse-cond-clauses : Symbol Syntax (Listof Syntax) -> (Listof Parsed-Clause)
+      ;; Each Parsed-Clause is (branch TEST BODY-CLAUSES) or (else BODY-CLAUSES).
+      ;; It checks structure, marker placement, and every threaded body clause
+      ;; before cond-expression constructs the expansion.
+      (define (parse-cond-clauses who whole clauses)
+        (let loop ((rest clauses) (parsed '()))
+          (if (null? rest)
+              (reverse parsed)
+              (let* ((clause (car rest))
+                     (elements (proper-list-elements clause)))
+                (if (or (not elements) (null? elements))
+                    (syntax-violation who "expected a non-empty proper condition clause"
+                                      whole clause)
+                    (let ((test (car elements))
+                          (body-clauses (cdr elements)))
+                      (if (base-else? test)
+                          (if (null? (cdr rest))
+                              (begin
+                                (validate-clauses who whole body-clauses)
+                                (reverse (cons (list 'else body-clauses) parsed)))
+                              (syntax-violation who "else clause must be last" whole clause))
+                          (begin
+                            (validate-clauses who whole body-clauses)
+                            (loop (cdr rest)
+                                  (cons (list 'branch test body-clauses) parsed))))))))))
+
+      ;; cond-expression : Syntax (Listof Parsed-Clause) -> Syntax
+      ;; Nested if forms evaluate tests in order.  Each selected body threads
+      ;; the generated temporary; a missing else branch returns that temporary.
+      (define (cond-expression value parsed-clauses)
+        (let ((temporary (car (generate-temporaries (list value)))))
+          (let ((body
+                 (let loop ((rest parsed-clauses))
+                   (if (null? rest)
+                       temporary
+                       (let* ((parsed (car rest))
+                              (kind (car parsed))
+                              (tail (cdr parsed))
+                              (test (and (eq? kind 'branch) (car tail)))
+                              (body-clauses (if (eq? kind 'branch) (cadr tail) (car tail)))
+                              (threaded-body (thread-expression 'first temporary body-clauses)))
+                         (if (eq? kind 'else)
+                             threaded-body
+                             (let ((otherwise (loop (cdr rest))))
+                               (with-syntax ((test test)
+                                             (then threaded-body)
+                                             (otherwise otherwise))
+                                 #'(if test then otherwise)))))))))
+            (with-syntax ((t temporary)
+                          (e value)
+                          (body body))
+              #'(let ((t e))
+                  body)))))
+
       ;; form-components : Symbol Syntax -> (Listof Syntax)
       ;; The arguments after the user's macro name.  WHOLE comes from the
       ;; wrapper before the private dispatcher expands it, so failures retain
@@ -188,6 +290,38 @@
                       (if (eq? arity-symbol 'variadic)
                           #'(lambda arg body)
                           #'(lambda (arg) body))))))
+               ((eq? kind-symbol 'when)
+                (if (or (null? parts) (null? (cdr parts)))
+                    (syntax-violation who "expected a value, test, and zero or more clauses"
+                                      #'whole #f)
+                    (let ((value (car parts))
+                          (test (cadr parts))
+                          (clauses (cddr parts)))
+                      (validate-clauses who #'whole clauses)
+                      (when-expression value test clauses))))
+               ((eq? kind-symbol 'unless)
+                (if (or (null? parts) (null? (cdr parts)))
+                    (syntax-violation who "expected a value, test, and zero or more clauses"
+                                      #'whole #f)
+                    (let ((value (car parts))
+                          (test (cadr parts))
+                          (clauses (cddr parts)))
+                      (validate-clauses who #'whole clauses)
+                      (unless-expression value test clauses))))
+               ((eq? kind-symbol 'tee)
+                (if (null? parts)
+                    (syntax-violation who "expected a value followed by zero or more clauses"
+                                      #'whole #f)
+                    (let ((value (car parts))
+                          (clauses (cdr parts)))
+                      (validate-clauses who #'whole clauses)
+                      (tee-expression value clauses))))
+               ((eq? kind-symbol 'cond)
+                (if (null? parts)
+                    (syntax-violation who "expected a value followed by zero or more condition clauses"
+                                      #'whole #f)
+                    (cond-expression (car parts)
+                                     (parse-cond-clauses who #'whole (cdr parts)))))
                (else
                 (syntax-violation who "internal threading macro kind" #'whole #f)))))
           (_
@@ -216,6 +350,34 @@
     (lambda (stx)
       (with-syntax ((whole stx))
         #'(threading-core whole thread last short one))))
+
+  ;; (when~> value test clause ...) -> VALUE when TEST is false, otherwise
+  ;; VALUE threaded through CLAUSE as each first argument.
+  (define-syntax when~>
+    (lambda (stx)
+      (with-syntax ((whole stx))
+        #'(threading-core whole when first plain one))))
+
+  ;; (unless~> value test clause ...) -> VALUE when TEST is true, otherwise
+  ;; VALUE threaded through CLAUSE as each first argument.
+  (define-syntax unless~>
+    (lambda (stx)
+      (with-syntax ((whole stx))
+        #'(threading-core whole unless first plain one))))
+
+  ;; (cond~> value (test clause ...) ... (else clause ...)) -> the first
+  ;; matching clause body threaded from VALUE, or VALUE when none matches.
+  (define-syntax cond~>
+    (lambda (stx)
+      (with-syntax ((whole stx))
+        #'(threading-core whole cond first plain one))))
+
+  ;; (tee~> value clause ...) -> run VALUE threaded through CLAUSE for effects,
+  ;; then answer VALUE itself.
+  (define-syntax tee~>
+    (lambda (stx)
+      (with-syntax ((whole stx))
+        #'(threading-core whole tee first plain one))))
 
   ;; (lambda~> clause ...) -> a one-argument procedure using ~>.
   (define-syntax lambda~>

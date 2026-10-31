@@ -19,6 +19,11 @@ the order they happen, not inside out.
 - *Chains as procedures.* =lambda~>= makes a procedure of one argument from a
   chain, and =lambda~>*= one of any number, taken as a list. Each has an
   ~and~ form, and a ~λ~ name: =λ~>=, =λ-and~>=.
+- *Steps that may not run.* =when~>= and =unless~>= run a chain only when a
+  test holds, or fails, and =cond~>= picks one chain of several; otherwise the
+  value passes through unchanged.
+- *Side trips.* =tee~>= runs a chain for its effects, a log line say, and
+  answers the value it was given.
 - *Plain R6RS.* One library, ~(threading)~, importing nothing but ~(rnrs)~, so
   it runs on any R6RS Scheme. The suites run on Chez Scheme.
 
