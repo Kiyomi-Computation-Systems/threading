@@ -150,3 +150,31 @@ jobs:
 
       - name: Test
         run: make test
+
+  # Match the Pages build on every pull request, so a release tag cannot be
+  # the first place a documentation link, anchor, or native renderer fails.
+  site:
+    name: site
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Init submodules
+        run: make submodules
+
+      - name: Install Chez and cmark-gfm
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends chezscheme cmark-gfm xz-utils
+
+      - name: Get chez-cmark-gfm as Akku.lock pins it
+        run: make site-deps
+
+      - name: Gate the site
+        run: make check-site CHEZ=chezscheme
+
+      - name: Build the site
+        run: make site CHEZ=chezscheme
