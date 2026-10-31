@@ -6,18 +6,10 @@ before starting slice work. When a slice merges, update **Now** and add a close-
 
 ## Now
 
-- **The scaffold is written**, not yet committed or merged: the Makefile, the test
-  harness (`(threading-testing)`, `(threading-checks)`, `make check-suites` and
-  `make check-imports` with their suites and fixtures), chez-srfi pinned under `vendor/`,
-  CI, AGENTS.md, README.org, NOTICE, and ADR-0001 to ADR-0003.
-- **The scaffold had a read-only adversarial review** on 2026-10-31. All 11 findings
-  were reproduced and fixed. The import audit now refuses `(rnrs eval)` and a
-  `(threading ...)` import that no file under `src/` holds, and passes over editor and OS
-  litter. `make check-suites` looks inside vectors. The fixtures pin exact headers,
-  mid-line `#!`, exits other than `(exit 1)`, and look-alike library names. CI installs
-  its tools before it uses them. 37 mutants of the harness, the reviewer's five among
-  them, are all killed.
-- **The design is drafted** in [2026-10-31-threading-design.md](2026-10-31-threading-design.md).
+- **The scaffold is merged**, squashed from
+  [PR #1](https://github.com/Kiyomi-Computation-Systems/threading/pull/1) on 2026-10-31;
+  its close-out is below.
+- **The design** is [2026-10-31-threading-design.md](2026-10-31-threading-design.md).
   The owner answered its six open questions on 2026-10-31, each the recommended option;
   design §7 records the answers.
 - **Next: slice 1**, `~>`, `~>>`, `and~>`, `and~>>`, `_` and the `lambda` forms with
@@ -25,8 +17,6 @@ before starting slice work. When a slice merges, update **Now** and add a close-
 
 ## Open
 
-- **CI has not run.** The workflow is written but the repository has not been pushed; the
-  first run builds Chez 10.4.1 on both architectures and fills the cache.
 - **`Akku.manifest` has not been read by `akku`**, which is not installed on the
   development host. Slice 3 checks it.
 - **Two `run-check` behaviours are untested**: that it runs `$CHEZ` rather than whatever
@@ -34,7 +24,43 @@ before starting slice work. When a slice merges, update **Now** and add a close-
   these apart from the inside without setting its own environment and stdin.
 - **The mutant recipe's `ulimit -v` is unverified on macOS**, where it is said to be
   refused; with `&&` the recipe then runs nothing rather than running uncapped.
+- **Nothing has run on macOS**, which the Makefile and `scripts/require-chez` aim to
+  support.
 
 ## Close-outs
 
-None yet.
+### The scaffold: PR #1, 2026-10-31
+
+- **What merged:**
+  - **Build and pin:** the Makefile, with `help`, `check-help`, `submodules`,
+    `check-pins`, `check-chez`, `deps`, `dev`, `run`, `test`, `check-suites`,
+    `check-imports` and `clean`. `scripts/require-chez`. chez-srfi pinned at `7879b52`.
+  - **Test harness:** `(threading-testing)` and `(threading-checks)`, the two audit
+    programs, three suites and their fixtures.
+  - **CI and docs:** CI, AGENTS.md, README.org crediting Alexis King, NOTICE with her ISC
+    license, CHANGELOG.md, Akku.manifest.
+  - **Plans:** ADR-0001 to ADR-0003, the global constraints and the design.
+- **The owner's choices:** the suites run on Chez alone, take SRFI-64 from a pinned
+  chez-srfi, and run on the host's Chez with no container (ADR-0001 to ADR-0003). The
+  answers to the design's six questions are in design §7.
+- **Verified:**
+  - `make test` passes on Chez 10.4.0 locally.
+  - CI's first run built Chez 10.4.1 on both images (`ta6le` and `tarm64le`) and passed
+    3 of 3 suites on each.
+  - 37 mutants of the harness are all killed.
+- **The review:** a read-only adversarial review, on Opus, found 11 defects, each
+  reproduced and fixed before merge.
+  - Two were ways past the import audit: a `(threading ...)` library outside `src/` on
+    the test path, and Chez reached through `(rnrs eval)`'s `environment`.
+  - One was an exit inside a quasiquoted vector, which `make check-suites` could not see.
+  - Five were wrong versions of the checks that every suite still passed.
+  - The rest were editor litter failing the audit, CI using its tools before installing
+    them, the mutant recipe's memory cap, and a design contract its own expansion table
+    broke.
+- **Traps recorded in AGENTS.md:**
+  - A quoted exit form in a suite counts as an early exit: build such a list with `list`.
+  - In Chez, `(rnrs)`'s `current-error-port` takes no argument; `parameterize` Chez's own.
+- **Also learned:**
+  - Ubuntu 24.04's apt Chez is 9.5.8, with no arm64 build, so CI builds its own Chez.
+  - A global gitignore can silently drop fixtures named like litter; `.gitignore`
+    negates it for `tests/fixtures/imports/litter/`.
