@@ -12,10 +12,13 @@ before starting slice work. When a slice merges, update **Now** and add a close-
 - **Slice 1 is merged**, squashed from
   [PR #2](https://github.com/Kiyomi-Computation-Systems/threading/pull/2) on 2026-10-31;
   its close-out is below.
+- **Slice 2 is merged**, squashed from
+  [PR #3](https://github.com/Kiyomi-Computation-Systems/threading/pull/3) on 2026-10-31;
+  its close-out is below.
 - **The design** is [2026-10-31-threading-design.md](2026-10-31-threading-design.md).
   The owner answered its six open questions on 2026-10-31, each the recommended option;
   design §7 records the answers.
-- **Next: slice 2**, `when~>`, `unless~>`, `cond~>` and `tee~>` (design §6).
+- **Next: slice 3**, release v0.1.0 (design §6).
 
 ## Open
 
@@ -30,6 +33,18 @@ before starting slice work. When a slice merges, update **Now** and add a close-
   support.
 
 ## Close-outs
+
+### Slice 2: PR #3, 2026-10-31
+
+- **What merged:** `when~>`, `unless~>`, `cond~>` and `tee~>` in `(threading)`;
+  their suite; guide and reference updates; and an Unreleased changelog entry.
+- **Verified:** `make test` passed all five suites locally, including 23 assertions in
+  `tests/test-threading-cond.sps`; `make check-pins check-help` and `git diff --check`
+  passed.
+- **The review:** a read-only review found no actionable issue.
+- **Also learned:** R6RS `else` is an auxiliary keyword and cannot safely be constructed
+  as a standalone syntax object in Chez. `cond~>` uses nested hygienic `if` forms while
+  matching the base `else` binding in its input, preserving its specified behavior.
 
 ### Slice 1: PR #2, 2026-10-31
 
