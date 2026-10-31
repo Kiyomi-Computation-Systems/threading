@@ -6,3 +6,10 @@ All notable changes to threading are recorded here. The format follows
 release before 1.0.
 
 ## [Unreleased]
+
+### Added
+
+- `(threading)`: `~>`, `~>>`, `and~>`, `and~>>`, the `lambda` threading
+  forms and their `λ` aliases, with R6RS `_` insertion holes.
+- Reference documentation and syntax errors that name the original form and
+  invalid clause.
