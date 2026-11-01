@@ -12,7 +12,7 @@
 (test-equal "other Markdown files write beside it as HTML" "reference.html"
   (page-file-name "reference.md"))
 (test-equal "the nav names every documentation source in order"
-  '("README.md" "reference.md")
+  '("README.md" "getting-started.md" "quickstart.md" "reference.md")
   (map car pages))
 (test-equal "heading anchors follow GitHub's lower-case spelling"
   "lambda-forms" (slugify "Lambda forms"))

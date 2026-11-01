@@ -8,8 +8,10 @@
   ;; The navigation's single source of order and labels.  The site check
   ;; holds this file set against docs/*.md.
   (define pages
-    '(("README.md"    . "Home")
-      ("reference.md" . "Reference")))
+    '(("README.md"         . "Home")
+      ("getting-started.md" . "Getting started")
+      ("quickstart.md"      . "Quickstart")
+      ("reference.md"       . "API reference")))
 
   ;; page-file-name : String -> String
   ;; README.md is the site's home page; every other Markdown source becomes
