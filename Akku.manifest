@@ -1,12 +1,11 @@
 #!r6rs ; -*- scheme -*-
 (import (akku format manifest))
 
-;; The package installs the libraries under src/, which are plain R6RS and
-;; depend on nothing. The suites' SRFI-64 comes from chez-srfi, a submodule
-;; under vendor/. chez-cmark-gfm is a development dependency used only to
-;; render docs/ for the static site; it is never imported by src/. .akkuignore
-;; keeps the tests, the tooling and the plans out of the package.
-(akku-package ("threading" "0.1.0")
+;; The package installs only (threading) under src/, which is plain R6RS and
+;; depends on nothing. chez-cmark-gfm renders the documentation site during
+;; development; .akkuignore keeps the site, docs, tests, tooling and plans out
+;; of the installed package.
+(akku-package ("threading" "0.1.1")
   (synopsis "Threading macros (~>, ~>>, and~> and friends) for R6RS Scheme")
   (authors "Kiyomi Computation Systems LLC")
   (homepage "https://github.com/Kiyomi-Computation-Systems/threading")

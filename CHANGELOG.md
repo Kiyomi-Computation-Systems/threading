@@ -7,6 +7,13 @@ release before 1.0.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-01
+
+### Fixed
+
+- Akku installations expose only the `(threading)` library, not the
+  documentation site or its build program.
+
 ## [0.1.0] - 2026-10-31
 
 ### Added
