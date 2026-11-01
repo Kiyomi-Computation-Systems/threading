@@ -24,8 +24,13 @@ the order they happen, not inside out.
   value passes through unchanged.
 - *Side trips.* =tee~>= runs a chain for its effects, a log line say, and
   answers the value it was given.
-- *Plain R6RS.* One library, ~(threading)~, importing nothing but ~(rnrs)~, so
-  it runs on any R6RS Scheme. The suites run on Chez Scheme.
+- *Plain R6RS.* One library, ~(threading)~, importing nothing but ~(rnrs)~:
+  no Chez procedures or reader extensions. Put ~src/~ on an R6RS
+  implementation's library path and import it as ~(threading)~.
+- *Other R6RS implementations.* Guile loads it in R6RS mode with
+  ~guile --r6rs -L src~. The library should work on other implementations
+  with R6RS libraries too. The Makefile and the full suite are Chez-only
+  development tooling, not a runtime dependency.
 
 v0.1.0 is the latest release. The library is not on Akku yet, so use a source
 checkout for now. The API may change in any release before 1.0;

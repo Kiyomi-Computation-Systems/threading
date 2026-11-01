@@ -55,6 +55,24 @@ means the same thing as `(* (+ 1 2) 10)`.
 - **Not a replacement for ordinary control flow.** Use a normal `let`, `if`,
   or `cond` when that makes the code clearer.
 
+## Works beyond Chez
+
+The library is one plain R6RS `.sls` file. It imports only `(rnrs)` and uses
+no Chez procedures or reader extensions, so an implementation with R6RS
+libraries should load it. Put this checkout's `src/` directory on that
+implementation's library path, then import `(threading)`.
+
+Guile users start it in R6RS mode. From the checkout:
+
+```sh
+guile --r6rs -L "$PWD/src" --no-auto-compile -s your-program.sps
+```
+
+The repository's `make` targets, test harness, and CI use Chez Scheme. That
+is how this project is continuously tested; it is not a dependency of the
+library. Run a small program on another R6RS implementation before relying on
+it in production.
+
 ## Status
 
 v0.1.0 is the latest release. The library is used from a checkout while Akku
