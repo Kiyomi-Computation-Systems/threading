@@ -1,85 +1,198 @@
-# Reference
+# API reference
 
-Import the library with:
+Everything `(threading)` exports, one entry each. Import it with:
 
 ```scheme
 (import (rnrs) (threading))
 ```
 
+The forms below are syntax. `value` and `test` stand for expressions;
+`clause ...` means zero or more clauses. The expansion sketches describe the
+resulting call shape, not a second syntax you need to write.
+
 ## Clauses
 
-A clause is one of:
+A clause takes the value from the step before it.
 
-- An identifier, such as `reverse`.
-- A quoted datum, such as `'name`. It expands as a procedure call and therefore
-  raises the usual run-time error if the datum is not a procedure.
-- A non-empty proper list, such as `(append '(0))`.
+| You write | `~>` makes | `~>>` makes |
+|:--|:--|:--|
+| `f` | `(f value)` | `(f value)` |
+| `(f a ...)` | `(f value a ...)` | `(f a ... value)` |
+| `(f a ... _ b ...)` | `(f a ... value b ...)` | the same |
 
-Normally `~>` inserts the current value after the list's first item, and `~>>`
-appends it. A list with exactly one top-level `_` uses that position instead.
-Nested `_` values are not holes. Two top-level holes, an empty or improper
-list, and every other datum are syntax errors.
+A quoted datum, such as `'name`, is also accepted and becomes an application
+of that datum. In ordinary R6RS that raises the usual run-time error because a
+quoted datum is not a procedure.
 
-## Threading forms
+`_` is a hole only when it is the re-exported `(rnrs base)` binding at the
+clause's top level. A nested or locally bound `_` is an ordinary value. A
+clause may have at most one top-level hole. A number, string, boolean,
+character, vector, bytevector, empty list, or improper list is a
+`syntax-violation`.
 
-`(~> value clause ...)`
+## Direct chains
 
-: Thread `value` through each `clause` as its first argument. With no clauses,
-  it expands to `value`.
+### `~>`
 
-`(~>> value clause ...)`
+```text
+(~> value clause ...) -> Any
+```
 
-: Thread `value` through each `clause` as its last argument. With no clauses,
-  it expands to `value`.
+Threads `value` through the clauses as their first argument. With no clauses,
+answers `value`.
 
-`(and~> value clause ...)` and `(and~>> value clause ...)`
+### `~>>`
 
-: Like the matching threading form, but evaluate each result once and stop at
-  the first `#f`. With no clauses, each expands to `value`.
+```text
+(~>> value clause ...) -> Any
+```
 
-`(when~> value test clause ...)`
+Threads `value` through the clauses as their last argument. With no clauses,
+answers `value`.
 
-: Evaluate `value`, then `test`. When `test` is true, thread the value through
-  the clauses as `~>` does; otherwise answer the original value.
+### `and~>`
 
-`(unless~> value test clause ...)`
+```text
+(and~> value clause ...) -> Any
+```
 
-: Evaluate `value`, then `test`. When `test` is false, thread the value through
-  the clauses as `~>` does; otherwise answer the original value.
+Like `~>`, but stops at the first result that is `#f`. It evaluates each result
+once and does not run later clauses after that `#f`.
 
-`(cond~> value (test clause ...) ... (else clause ...))`
+### `and~>>`
 
-: Evaluate `value` once, then tests from left to right. Thread its value through
-  the first matching clause body. An `else` clause is optional; without one,
-  no matching test answers the original value. `else` must be last and uses the
-  ordinary R6RS `else` binding, so a locally bound variable named `else` is a
-  normal test.
+```text
+(and~>> value clause ...) -> Any
+```
 
-`(tee~> value clause ...)`
+Like `~>>`, with the same `#f` short-circuiting as `and~>`.
 
-: Evaluate `value` once, thread it through the clauses for their effects, then
-  answer the original value. With no clauses, it answers that value unchanged.
+## Conditional chains
 
-## Procedure forms
+### `when~>`
 
-`(lambda~> clause ...)`, `(lambda~>> clause ...)`,
-`(lambda-and~> clause ...)`, `(lambda-and~>> clause ...)`
+```text
+(when~> value test clause ...) -> Any
+```
 
-: Expand to a one-argument procedure that threads its argument with `~>`,
-  `~>>`, `and~>`, or `and~>>`, respectively.
+Evaluates `value`, then `test`. When `test` is true, threads the value as
+`~>` does; otherwise answers the original value.
 
-`(lambda~>* clause ...)`, `(lambda~>>* clause ...)`,
-`(lambda-and~>* clause ...)`, `(lambda-and~>>* clause ...)`
+### `unless~>`
 
-: Expand to a rest-argument procedure. Its received arguments are one list,
-  then threaded with the matching form.
+```text
+(unless~> value test clause ...) -> Any
+```
 
-`λ~>`, `λ~>>`, `λ-and~>`, `λ-and~>>`, `λ~>*`, `λ~>>*`,
-`λ-and~>*`, and `λ-and~>>*`
+Evaluates `value`, then `test`. When `test` is false, threads the value as
+`~>` does; otherwise answers the original value.
 
-: Aliases for the matching `lambda` forms. They are the same bindings.
+### `cond~>`
 
-`_`
+```text
+(cond~> value (test clause ...) ... (else clause ...)) -> Any
+```
 
-: Re-export of `(rnrs base)`'s `_`. A top-level use of that binding inside a
-  clause marks the insertion point.
+Evaluates `value` once, then tries tests from left to right. It threads that
+value through the first matching body. `else` is optional and must be last;
+with no match and no `else`, the original value is returned. Only the ordinary
+R6RS `else` binding marks the final clause, so a locally bound variable named
+`else` remains a normal test.
+
+### `tee~>`
+
+```text
+(tee~> value clause ...) -> Any
+```
+
+Evaluates `value` once, runs a first-threading chain for its effects, then
+answers the original value. With no clauses, it simply answers that value.
+
+## Procedures made from chains
+
+### `lambda~>`
+
+```text
+(lambda~> clause ...) -> (Any -> Any)
+```
+
+Makes a one-argument procedure that uses `~>` on its argument.
+
+### `lambda~>>`
+
+```text
+(lambda~>> clause ...) -> (Any -> Any)
+```
+
+Makes a one-argument procedure that uses `~>>` on its argument.
+
+### `lambda-and~>`
+
+```text
+(lambda-and~> clause ...) -> (Any -> Any)
+```
+
+Makes a one-argument procedure that uses `and~>` on its argument.
+
+### `lambda-and~>>`
+
+```text
+(lambda-and~>> clause ...) -> (Any -> Any)
+```
+
+Makes a one-argument procedure that uses `and~>>` on its argument.
+
+### `lambda~>*`
+
+```text
+(lambda~>* clause ...) -> (Any ... -> Any)
+```
+
+Makes a rest-argument procedure. It collects all of its arguments into one
+list, then threads that list with `~>`.
+
+### `lambda~>>*`
+
+```text
+(lambda~>>* clause ...) -> (Any ... -> Any)
+```
+
+Like `lambda~>*`, but threads the collected list with `~>>`.
+
+### `lambda-and~>*`
+
+```text
+(lambda-and~>* clause ...) -> (Any ... -> Any)
+```
+
+Like `lambda~>*`, but uses `and~>` on the collected list.
+
+### `lambda-and~>>*`
+
+```text
+(lambda-and~>>* clause ...) -> (Any ... -> Any)
+```
+
+Like `lambda~>*`, but uses `and~>>` on the collected list.
+
+## Unicode aliases
+
+Each name below is the same binding as its `lambda` spelling. Choose the form
+your editor and team read best.
+
+| Alias | Same binding as |
+|:--|:--|
+| `λ~>` | `lambda~>` |
+| `λ~>>` | `lambda~>>` |
+| `λ-and~>` | `lambda-and~>` |
+| `λ-and~>>` | `lambda-and~>>` |
+| `λ~>*` | `lambda~>*` |
+| `λ~>>*` | `lambda~>>*` |
+| `λ-and~>*` | `lambda-and~>*` |
+| `λ-and~>>*` | `lambda-and~>>*` |
+
+## `_`
+
+`_` is re-exported from `(rnrs base)`. At a clause's top level it chooses the
+threaded value's exact position. It is otherwise the ordinary R6RS `_`
+binding, so importing both `(rnrs)` and `(threading)` causes no conflict.

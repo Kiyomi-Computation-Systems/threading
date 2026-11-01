@@ -27,9 +27,10 @@ the order they happen, not inside out.
 - *Plain R6RS.* One library, ~(threading)~, importing nothing but ~(rnrs)~, so
   it runs on any R6RS Scheme. The suites run on Chez Scheme.
 
-Nothing is released yet. The API may change in any release before 1.0;
+v0.1.0 is the latest release. The library is not on Akku yet, so use a source
+checkout for now. The API may change in any release before 1.0;
 [[file:CHANGELOG.md][CHANGELOG.md]] will say what each release has. The complete
-grammar is in [[file:docs/reference.md][the reference]].
+grammar is in [[file:docs/reference.md][the API reference]].
 
 ** Quick start
 
