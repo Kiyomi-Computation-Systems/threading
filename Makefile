@@ -47,7 +47,7 @@ TIMEOUT ?= $(or $(shell command -v timeout 2>/dev/null),$(shell command -v gtime
 
 # One physical line: check-help reads it with awk, and fails if it ends in a
 # backslash.
-.PHONY: help check-help submodules check-pins check-chez deps dev run test check-suites check-imports clean
+.PHONY: help check-help submodules check-pins check-chez deps dev run test check-suites check-imports site-deps site check-site clean
 
 .DEFAULT_GOAL := help
 
@@ -190,6 +190,38 @@ check-suites: deps ## Fail unless every tests/test-*.sps ends with the shared ex
 # over dot files, #autosave# and backup~. make test runs it once src/ exists.
 check-imports: deps ## Fail unless every file under src/ is a plain R6RS library importing only (rnrs ...) and (threading ...)
 	@$(CHEZ) --libdirs $(TEST_LIBDIRS) --program tests/check-imports.sps src
+
+# --- the docs site ------------------------------------------------------------
+# docs/*.md render into build/site/ through chez-cmark-gfm.  The dependency is
+# development-only: src/ remains portable R6RS and `make test` needs no native
+# Markdown parser.  An `akku install` tree wins when present; otherwise the
+# pinned archive in Akku.lock is downloaded, verified, and unpacked under
+# build/ by scripts/fetch-akku-lock.
+SITE_CMARK   := $(if $(wildcard .akku/lib/cmark/gfm.sls),.akku/lib,$(BUILD_DIR)/akku/chez-cmark-gfm/src)
+SITE_LIBDIRS := .:$(SITE_CMARK)
+SITE_REF     ?= main
+
+site-deps: ## (network, once) Get chez-cmark-gfm as Akku.lock pins it
+	@if [ -f .akku/lib/cmark/gfm.sls ]; then \
+	  echo "site-deps: using .akku/lib (akku install)"; \
+	else \
+	  AKKU_DEST=$(BUILD_DIR)/akku sh scripts/fetch-akku-lock chez-cmark-gfm; \
+	fi
+
+site: site-deps check-chez ## Render docs/ into build/site/; SITE_REF=<tag> pins repository links
+	@mkdir -p $(BUILD_DIR)/site
+	@SITE_REF="$(SITE_REF)" SITE_OUT=$(BUILD_DIR)/site \
+	  $(CHEZ) --libdirs $(SITE_LIBDIRS) --program build-site.sps
+	@cp site/style.css $(BUILD_DIR)/site/style.css
+	@echo "site: $(BUILD_DIR)/site ready (open $(BUILD_DIR)/site/index.html)"
+
+# The pure generator contracts run without chez-cmark-gfm on their library
+# path.  The pipeline and the real docs then run with it, proving every page
+# in the registry exists and no documentation link or anchor dangles.
+check-site: site-deps deps ## Test the generator and validate every docs/ page, link, and anchor
+	@$(CHEZ) --libdirs .:tests:$(SRFI_LIBS) --program tests/site-unit.sps
+	@$(CHEZ) --libdirs $(SITE_LIBDIRS):tests:$(SRFI_LIBS) --program tests/site-render-unit.sps
+	@SITE_REF="$(SITE_REF)" $(CHEZ) --libdirs $(SITE_LIBDIRS) --program tests/site-check.sps
 
 clean: ## Remove build/
 	rm -rf $(BUILD_DIR)
