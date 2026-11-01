@@ -10,6 +10,11 @@ The forms below are syntax. `value` and `test` stand for expressions;
 `clause ...` means zero or more clauses. The expansion sketches describe the
 resulting call shape, not a second syntax you need to write.
 
+The library itself imports only `(rnrs)`. Its public syntax has no Chez
+extension, so an implementation with standard R6RS libraries should load
+`src/threading.sls` as `(threading)`. The repository's development suite is
+run on Chez alone.
+
 ## Clauses
 
 A clause takes the value from the step before it.
